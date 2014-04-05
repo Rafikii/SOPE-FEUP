@@ -41,7 +41,7 @@ int monitorAux(char* search, char* filename) {
 		close(p1[READ]);
 		dup2(p1[WRITE], STDOUT_FILENO);
 
-		if (execlp("tail", "tail", "-f", "-n", "0", filename, NULL))
+		if (execlp("tail", "tail", "-f", "-n", "0", filename, NULL) != 0)
 			printf("Error trying to execute tail.\n");
 	}
 

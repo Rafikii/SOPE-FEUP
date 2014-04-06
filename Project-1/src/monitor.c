@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <signal.h>
 #include <string.h>
 #include <time.h>
 
@@ -88,6 +89,11 @@ int monitorAux(char* search, char* filename) {
 	return 0;
 }
 
+void catch_ctrl_c(int signo) {
+	char msg[] = "Control - C pressed!\n";
+	write(STDERR_FILENO, msg, strlen(msg));
+}
+
 int main(int argc, char** argv) {
 	if (argc <= 3) {
 		printf("Wrong number of arguments.\n");
@@ -95,17 +101,54 @@ int main(int argc, char** argv) {
 		exit(-1);
 	}
 
+	// processing time and word input
+	long scanTime = strtol(argv[1], NULL, 10);
 	char* word = argv[2];
 
-	printf("tempo: %s\n", argv[1]);
+	printf("---------------------\n");
+	printf("Debugging info:\n");
+	printf("tempo: %ld\n", scanTime);
 	printf("palavra: %s\n", word);
+	printf("---------------------\n");
 
+	time_t startTime = time(NULL);
+	time_t currentTime = startTime;
+	while (currentTime - startTime < scanTime)
+		currentTime = time(NULL);
+
+	pid_t pid;
 	int i;
 	for (i = 3; i < argc; i++) {
 		printf("Starting to monitor file %d: %s\n", i-2, argv[i]);
-		monitorAux(word, argv[i]);
+
+		if ((pid = fork()) < 0) {
+			printf("Error while forking for file: %s\n", argv[i]);
+			exit(1);
+		} else if (pid > 0) {
+			// parent running
+			// do nothing?
+		} else {
+			// son running
+			monitorAux(word, argv[i]);
+
+			/*
+			if (execlp(monitorAux, monitorAux, word, argv[i], NULL) != 0) {
+				printf("Error executing monitorAux for file: %s\n", argv[i]);
+				exit(1);
+			}
+			*/
+		}
 	}
 
-	printf("Done.\n");
+	struct sigaction act;
+	act.sa_handler = catch_ctrl_c;
+	sigemptyset(&act.sa_mask);
+	act.sa_flags = 0;
+	
+	sigaction(SIGINT, &act, NULL);
+
+	printf("----------\n");
+	printf("Time's up!\n");
+	printf("----------\n");
 	return 0;
 }

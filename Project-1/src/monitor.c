@@ -11,23 +11,23 @@
 char* getTimeToString() {
 	time_t currentTime;
 
-	if ((currentTime = time(NULL)) == (time_t) - 1) 
+	if ((currentTime = time(NULL)) == (time_t) - 1)
 		printf("Error getting current time.");
 
 	char str[20];
-	sprintf(str, "%02d-%02d-%02dT%02d:%02d:%02d", 
-		localtime(&currentTime)->tm_year+1900, 
-		localtime(&currentTime)->tm_mon+1, 
-		localtime(&currentTime)->tm_mday, 
-		localtime(&currentTime)->tm_hour, 
-		localtime(&currentTime)->tm_min, 
+	sprintf(str, "%02d-%02d-%02dT%02d:%02d:%02d",
+		localtime(&currentTime)->tm_year+1900,
+		localtime(&currentTime)->tm_mon+1,
+		localtime(&currentTime)->tm_mday,
+		localtime(&currentTime)->tm_hour,
+		localtime(&currentTime)->tm_min,
 		localtime(&currentTime)->tm_sec);
 
-	char* timeStr; 
-	if((timeStr = malloc(strlen(str)+1)) != NULL){ 
-		timeStr[0] = '\0'; // ensures the memory is an empty string
-		strcat(timeStr, str); 
-	} else { 
+	char* timeStr;
+	if((timeStr = malloc(strlen(str)+1)) != NULL){
+		timeStr[0] = '\0';	// ensures the memory is an empty string
+		strcat(timeStr, str);
+	} else {
 		printf("malloc failed!\n");
 	}
 
@@ -57,9 +57,8 @@ int monitorAux(char* search, char* filename) {
 		} else if (pidGrep > 0) {
 			// parent running
 			close(p2[WRITE]);
-			printf("Ola");
 			n = read(p2[READ], line, MAXLINE);
-
+			write(STDOUT_FILENO, getTimeToString(), 19);
 			write(STDOUT_FILENO, line, n);
 		} else {
 			// son that runs grep

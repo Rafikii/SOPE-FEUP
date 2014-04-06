@@ -29,6 +29,7 @@ char* getTimeToString() {
 		strcat(timeStr, str);
 	} else {
 		printf("malloc failed!\n");
+		exit(-1);
 	}
 
 	return timeStr;
@@ -57,22 +58,28 @@ int monitorAux(char* search, char* filename) {
 		} else if (pidGrep > 0) {
 			// parent running
 			close(p2[WRITE]);
-			n = read(p2[READ], line, MAXLINE);
-			write(STDOUT_FILENO, getTimeToString(), 19);
-			write(STDOUT_FILENO, line, n);
+			//dup2(p2[READ], STDOUT_FILENO);
+
+			while (1) {
+				n = read(p2[READ], line, MAXLINE);
+				line[n-1] = 0;
+				printf("%s - %s - \"%s\"\n", getTimeToString(), filename, line);
+			}
 		} else {
 			// son that runs grep
 			close(p1[WRITE]);
-			close(p2[READ]);
 			dup2(p1[READ], STDIN_FILENO);
+
+			dup2(p2[WRITE], STDOUT_FILENO);
+			close(p2[READ]);
 
 			if (execlp("grep", "grep", "--line-buffered", search, NULL) != 0)
 				printf("Error trying to execute grep.\n");
 		}
 	} else {
 		// son that runs tail
-		close(p1[READ]);
 		dup2(p1[WRITE], STDOUT_FILENO);
+		close(p1[READ]);
 
 		if (execlp("tail", "tail", "-f", "-n", "0", filename, NULL) != 0)
 			printf("Error trying to execute tail.\n");

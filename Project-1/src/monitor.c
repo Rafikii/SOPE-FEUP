@@ -6,8 +6,15 @@
 #include <time.h>
 
 #define MAXLINE 256
+
 #define READ 0
 #define WRITE 1
+
+#define TAIL 1
+#define GREP 2
+
+int numFiles;
+pid_t (*pidsPtr)[3];
 
 char* getTimeToString() {
 	time_t currentTime;
@@ -36,9 +43,8 @@ char* getTimeToString() {
 	return timeStr;
 }
 
-int monitorAux(char* search, char* filename) {
+int monitorAux(char* search, char* filename, int fileNum) {
 	int n, p1[2], p2[2];
-	pid_t pidTail, pidGrep;
 	char line[MAXLINE];
 
 	// creating pipes
@@ -48,22 +54,24 @@ int monitorAux(char* search, char* filename) {
 	}
 
 	// forking: creating son to run tail
-	if ((pidTail = fork()) < 0) {
+	if ((pidsPtr[fileNum][TAIL] = fork()) < 0) {
 		fprintf(stderr, "Error while forking to run tail. O.o\n");
 		exit(2);
-	} else if (pidTail > 0) {
+	} else if (pidsPtr[fileNum][TAIL] > 0) {
 		// forking: creating son to run grep
-		if ((pidGrep = fork()) < 0) {
+		if ((pidsPtr[fileNum][GREP] = fork()) < 0) {
 			fprintf(stderr, "Error while forking to run grep. O.o\n");
 			exit(3);
-		} else if (pidGrep > 0) {
+		} else if (pidsPtr[fileNum][GREP] > 0) {
 			// parent running
 			close(p2[WRITE]);
 			//dup2(p2[READ], STDOUT_FILENO);
 
 			while (1) {
+				// reading string
 				n = read(p2[READ], line, MAXLINE);
 				line[n-1] = 0;
+
 				printf("%s - %s - \"%s\"\n", getTimeToString(), filename, line);
 			}
 		} else {
@@ -89,9 +97,18 @@ int monitorAux(char* search, char* filename) {
 	return 0;
 }
 
-void catch_ctrl_c(int signo) {
-	char msg[] = "Control - C pressed!\n";
-	write(STDERR_FILENO, msg, strlen(msg));
+void alarmHandler(int signum) {
+	printf("\nAlarm went off!\n");
+	printf("Killing all processes...\n");
+
+	int i, j;
+	for (i = 0; i < numFiles; i++) {
+		for (j = 0; j < 3; j++) {
+			kill(pidsPtr[i][j], SIGINT);
+		}
+	}
+
+	exit(0);
 }
 
 int main(int argc, char** argv) {
@@ -104,6 +121,7 @@ int main(int argc, char** argv) {
 	// processing time and word input
 	long scanTime = strtol(argv[1], NULL, 10);
 	char* word = argv[2];
+	numFiles = argc-3;
 
 	printf("---------------------\n");
 	printf("Debugging info:\n");
@@ -111,44 +129,50 @@ int main(int argc, char** argv) {
 	printf("palavra: %s\n", word);
 	printf("---------------------\n");
 
-	time_t startTime = time(NULL);
-	time_t currentTime = startTime;
-	while (currentTime - startTime < scanTime)
-		currentTime = time(NULL);
+	// creating array to store pids
+	pid_t pids[argc-3][3];
+	pidsPtr = pids;
 
-	pid_t pid;
 	int i;
-	for (i = 3; i < argc; i++) {
-		printf("Starting to monitor file %d: %s\n", i-2, argv[i]);
+	for (i = 0; i < numFiles; i++) {
+		printf("Starting to monitor file %d: %s\n", i+1, argv[i+3]);
 
-		if ((pid = fork()) < 0) {
-			printf("Error while forking for file: %s\n", argv[i]);
+		if ((pids[i][0] = fork()) < 0) {
+			printf("Error while forking for file: %s\n", argv[i+3]);
 			exit(1);
-		} else if (pid > 0) {
+		} else if (pids[i][0] > 0) {
 			// parent running
 			// do nothing?
 		} else {
 			// son running
-			monitorAux(word, argv[i]);
-
-			/*
-			if (execlp(monitorAux, monitorAux, word, argv[i], NULL) != 0) {
-				printf("Error executing monitorAux for file: %s\n", argv[i]);
-				exit(1);
-			}
-			*/
+			monitorAux(word, argv[i+3], i);
 		}
 	}
+	printf("\n");
+
+	/*
+	// running time
+	time_t startTime = time(NULL);
+	time_t currentTime = startTime;
+	while (currentTime - startTime < scanTime)
+		currentTime = time(NULL);
+	*/
 
 	struct sigaction act;
-	act.sa_handler = catch_ctrl_c;
+	act.sa_handler = alarmHandler;
 	sigemptyset(&act.sa_mask);
 	act.sa_flags = 0;
-	
-	sigaction(SIGINT, &act, NULL);
+
+	sigaction(SIGALRM, &act, NULL);
+
+	// setting alarm
+	alarm(scanTime);
+
+	while (1);
 
 	printf("----------\n");
 	printf("Time's up!\n");
 	printf("----------\n");
+
 	return 0;
 }

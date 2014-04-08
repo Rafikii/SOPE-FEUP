@@ -8,7 +8,7 @@
 #define GREP 2
 
 int numFiles;
-pid_t (*pidsPtr)[3];
+pid_t (*pidsPtr);
 
 char* getMonitorAuxPath() {
 	// getting current work directory
@@ -31,14 +31,15 @@ char* getMonitorAuxPath() {
 
 void alarmHandler(int signum) {
 	printf("\nAlarm went off!\n");
-	printf("Killing all processes...\n");
 
+	printf("Killing all processes... ");
 	int i, j;
 	for (i = 0; i < numFiles; i++) {
 		for (j = 0; j < 3; j++) {
-			kill(pidsPtr[i][j], SIGINT);
+			kill(-pidsPtr[i], SIGINT);
 		}
 	}
+	printf("OK!\n");
 
 	printf("Monitor terminated.\n");
 	exit(0);
@@ -64,15 +65,15 @@ int main(int argc, char** argv) {
 	printf("---------------------\n");
 
 	// creating array to store pids
-	pid_t pids[argc-3][3];
+	pid_t pids[argc-3];
 	pidsPtr = pids;
 
 	int i;
 	for (i = 0; i < numFiles; i++) {
-		if ((pids[i][0] = fork()) < 0) {
+		if ((pids[i] = fork()) < 0) {
 			printf("Error while forking for file: %s\n", argv[i+3]);
 			exit(1);
-		} else if (pids[i][0] > 0) {
+		} else if (pids[i] > 0) {
 			// parent running
 			// do nothing?
 		} else {

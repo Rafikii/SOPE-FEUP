@@ -58,6 +58,9 @@ int main(int argc, char**argv) {
 		exit(1);
 	}
 
+	// creating process group
+	setpgrp();
+
 	// forking: creating son to run tail
 	if ((pidTail = fork()) < 0) {
 		fprintf(stderr, "Error while forking to run tail. O.o\n");

@@ -8,7 +8,8 @@
 #define GREP 2
 
 int numFiles;
-pid_t (*pidsPtr);
+pid_t *pidsPtr;
+pid_t pidFileMonitor;
 
 char* getMonitorAuxPath() {
 	// getting current work directory
@@ -29,6 +30,25 @@ char* getMonitorAuxPath() {
 	return monitorAuxPath;
 }
 
+char* getFileMonitorPath() {
+	// getting current work directory
+	char cwd[1024];
+	if (getcwd(cwd, sizeof(cwd)) == NULL)
+		perror("getcwd() error");
+
+	char* monitorAuxPath;
+	if((monitorAuxPath = malloc(strlen(cwd)+1)) != NULL) {
+		monitorAuxPath[0] = '\0';	// ensures the memory is an empty string
+		strcat(monitorAuxPath, cwd);
+		strcat(monitorAuxPath, "/fileMonitor");
+	} else {
+		printf("malloc failed!\n");
+		exit(-1);
+	}
+
+	return monitorAuxPath;
+}
+
 void alarmHandler(int signum) {
 	printf("\nAlarm went off!\n");
 
@@ -37,6 +57,7 @@ void alarmHandler(int signum) {
 	for (i = 0; i < numFiles; i++) {
 		for (j = 0; j < 3; j++) {
 			kill(-pidsPtr[i], SIGINT);
+			kill(pidFileMonitor, SIGINT);
 		}
 	}
 	printf("OK!\n");
@@ -65,10 +86,15 @@ int main(int argc, char** argv) {
 	printf("---------------------\n");
 
 	// creating array to store pids
-	pid_t pids[argc-3];
+	pid_t pids[numFiles];
 	pidsPtr = pids;
 
+	// initializing pids array
 	int i;
+	for (i = 0; i < numFiles; i++)
+		pids[i] = 0;
+
+	// launching a monitorAux for each file
 	for (i = 0; i < numFiles; i++) {
 		if ((pids[i] = fork()) < 0) {
 			printf("Error while forking for file: %s\n", argv[i+3]);
@@ -85,6 +111,40 @@ int main(int argc, char** argv) {
 		}
 	}
 
+	// launching fileMonitor
+	if ((pidFileMonitor = fork()) < 0) {
+		printf("Error while forking to create File Monitor.\n");
+		exit(3);
+	} else if (pidFileMonitor > 0) {
+		// parent running
+		// do nothing?
+	} else {
+		// son running
+
+		// making sure every monitorAux has already started
+		int done = 0;
+		while (!done) {
+			done = 1;
+
+			for (i = 0; i < numFiles; i++) {
+				if (pids[i] == 0) {
+					done = 0;
+					break;
+				}
+			}
+		}
+
+		// and only then launch file monitor
+		if (execlp(getFileMonitorPath(), "fileMonitor", numFiles, pids, argv+3, pidFileMonitor, NULL) != 0) {
+			printf("Error trying to execute fileMonitor.\n");
+			exit(4);
+		}
+		//fileMonitor(numFiles, pids, argv+3, pidFileMonitor);
+		printf("\nAll the files have been removed.\n");
+
+		exit(0);
+	}
+
 	struct sigaction act;
 	act.sa_handler = alarmHandler;
 	sigemptyset(&act.sa_mask);
@@ -95,6 +155,7 @@ int main(int argc, char** argv) {
 	// setting alarm
 	alarm(scanTime);
 
+	// TODO can we change this?
 	while (1);
 
 	return 0;

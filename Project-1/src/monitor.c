@@ -69,6 +69,12 @@ void alarmHandler(int signum) {
 	exit(0);
 }
 
+void zombieHandler(int signal_num) {
+	// wait for the child process and clean up
+	int status;
+	wait(&status);
+}
+
 int main(int argc, char** argv) {
 	if (argc <= 3) {
 		printf("Wrong number of arguments.\n");
@@ -166,6 +172,7 @@ int main(int argc, char** argv) {
 		}
 	}
 
+	// installing alarm
 	struct sigaction act;
 	act.sa_handler = alarmHandler;
 	sigemptyset(&act.sa_mask);
@@ -173,12 +180,21 @@ int main(int argc, char** argv) {
 
 	sigaction(SIGALRM, &act, NULL);
 
+	// installing zombie handler
+	struct sigaction sa;
+	memset(&sa, 0, sizeof(sa));
+	sa.sa_handler = &zombieHandler;
+
+	sigaction(SIGCHLD, &sa, NULL);
+
 	// setting alarm
 	alarm(scanTime);
 
-	// TODO can we change this?
-	while (1);
-		//printf("filemonitorpid: %d\n", pidFileMonitor);
+	// execute monitor while file monitor is running
+	while (waitpid(pidFileMonitor, NULL, WNOHANG) != -1);
+
+	printf("Reaping File Monitor.\n");
+	kill(pidFileMonitor, SIGINT);
 
 	return 0;
 }

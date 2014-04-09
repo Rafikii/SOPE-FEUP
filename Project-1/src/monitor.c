@@ -11,11 +11,17 @@ int numFiles;
 pid_t *pidsPtr;
 pid_t pidFileMonitor;
 
-char* getMonitorAuxPath() {
-	// getting current work directory
-	char cwd[1024];
-	if (getcwd(cwd, sizeof(cwd)) == NULL)
+char* getCWDPath() {
+	char* cwd = (char*) malloc(1024*sizeof(char));
+
+	if (getcwd(cwd, 1024) == NULL)
 		perror("getcwd() error");
+
+	return cwd;
+}
+
+char* getMonitorAuxPath() {
+	char* cwd = getCWDPath();
 
 	char* monitorAuxPath;
 	if((monitorAuxPath = malloc(strlen(cwd)+1)) != NULL) {
@@ -31,10 +37,7 @@ char* getMonitorAuxPath() {
 }
 
 char* getFileMonitorPath() {
-	// getting current work directory
-	char cwd[1024];
-	if (getcwd(cwd, sizeof(cwd)) == NULL)
-		perror("getcwd() error");
+	char* cwd = getCWDPath();
 
 	char* monitorAuxPath;
 	if((monitorAuxPath = malloc(strlen(cwd)+1)) != NULL) {
@@ -57,9 +60,9 @@ void alarmHandler(int signum) {
 	for (i = 0; i < numFiles; i++) {
 		for (j = 0; j < 3; j++) {
 			kill(-pidsPtr[i], SIGINT);
-			kill(pidFileMonitor, SIGINT);
 		}
 	}
+	kill(pidFileMonitor, SIGINT);
 	printf("OK!\n");
 
 	printf("Monitor terminated.\n");
@@ -134,15 +137,33 @@ int main(int argc, char** argv) {
 			}
 		}
 
+		char* str;
+		int fileMonitorArgc = 2+2*numFiles;
+		char* fileMonitorArgv[fileMonitorArgc+1];
+
+		// setting filename and null terminator
+		fileMonitorArgv[0] = "./fileMonitor";
+		fileMonitorArgv[fileMonitorArgc] = 0;
+
+		// setting numFiles
+		str = (char*) malloc(256*sizeof(char));
+		sprintf(str, "%d", numFiles);
+		fileMonitorArgv[1] = str;
+
+		// setting filePids and files
+		for (i = 0; i < numFiles; i++) {
+			str = (char*) malloc(256*sizeof(char));
+			sprintf(str, "%d", pids[i]);
+			fileMonitorArgv[i+2] = str;
+
+			fileMonitorArgv[i+2+numFiles] = argv[i+3];
+		}
+
 		// and only then launch file monitor
-		if (execlp(getFileMonitorPath(), "fileMonitor", numFiles, pids, argv+3, pidFileMonitor, NULL) != 0) {
+		if (execv(getFileMonitorPath(), fileMonitorArgv) != 0) {
 			printf("Error trying to execute fileMonitor.\n");
 			exit(4);
 		}
-		//fileMonitor(numFiles, pids, argv+3, pidFileMonitor);
-		printf("\nAll the files have been removed.\n");
-
-		exit(0);
 	}
 
 	struct sigaction act;
@@ -157,6 +178,7 @@ int main(int argc, char** argv) {
 
 	// TODO can we change this?
 	while (1);
+		//printf("filemonitorpid: %d\n", pidFileMonitor);
 
 	return 0;
 }

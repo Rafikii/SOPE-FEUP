@@ -75,6 +75,23 @@ void zombieHandler(int signal_num) {
 	wait(&status);
 }
 
+void installHandlers() {
+	// installing alarm
+	struct sigaction act;
+	act.sa_handler = alarmHandler;
+	sigemptyset(&act.sa_mask);
+	act.sa_flags = 0;
+
+	sigaction(SIGALRM, &act, NULL);
+
+	// installing zombie handler
+	struct sigaction sa;
+	memset(&sa, 0, sizeof(sa));
+	sa.sa_handler = &zombieHandler;
+
+	sigaction(SIGCHLD, &sa, NULL);
+}
+
 int main(int argc, char** argv) {
 	if (argc <= 3) {
 		printf("Wrong number of arguments.\n");
@@ -172,20 +189,7 @@ int main(int argc, char** argv) {
 		}
 	}
 
-	// installing alarm
-	struct sigaction act;
-	act.sa_handler = alarmHandler;
-	sigemptyset(&act.sa_mask);
-	act.sa_flags = 0;
-
-	sigaction(SIGALRM, &act, NULL);
-
-	// installing zombie handler
-	struct sigaction sa;
-	memset(&sa, 0, sizeof(sa));
-	sa.sa_handler = &zombieHandler;
-
-	sigaction(SIGCHLD, &sa, NULL);
+	installHandlers();
 
 	// setting alarm
 	alarm(scanTime);

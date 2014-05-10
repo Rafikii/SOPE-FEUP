@@ -1,7 +1,7 @@
 all: primes
 
 primes: primes.o CircularQueue.o
-	gcc -Wall primes.o CircularQueue.o -o bin/primes -pthread
+	gcc -Wall primes.o CircularQueue.o -o bin/primes -lm -pthread
 
 primes.o: primes.c
 	gcc -Wall -c primes.c

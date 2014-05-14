@@ -16,6 +16,8 @@ int writeID;
 int* primesList;
 int primesListSize;
 
+CircularQueue* sharedQueue;
+
 int compare (const void * a, const void * b) {
 	return *(int*)a - *(int*)b;
 }
@@ -32,18 +34,37 @@ void addNumToPrimesList(int num) {
 	primesListSize++;
 }
 
-void* initThreadFunc(void *arg) {
+void* filterThread(void* arg) {
+	int elem = 0;
+
+	while (elem != 0) {
+		printf("%d", elem);
+
+		elem = 1;
+	}
+	printf("\n");
+
+	return NULL;
+}
+
+void* initThreadFunc(void* arg) {
 	printf("> Starting initial thread\n");
 
 	addNumToPrimesList(2);
+
+	pthread_t ft;
+	pthread_create(&ft, NULL, filterThread, NULL);
+
+	queue_init(&sharedQueue, QUEUE_SIZE);
+
+	int i;
+	for (i = 0; i <= 10; i++)
+		queue_put(sharedQueue, i);
 
 	return NULL;
 }
 
 int main(int argc, char** argv) {
-	CircularQueue *q;
-	queue_init(&q, QUEUE_SIZE);
-
 	// validating number of arguments
 	if (argc <= 1) {
 		printf("Wrong number of arguments.\n");

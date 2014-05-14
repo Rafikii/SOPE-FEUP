@@ -31,7 +31,7 @@ typedef struct {
 	pthread_mutex_t mutex;
 } CircularQueue;
 
-void queue_init(CircularQueue **q, unsigned int capacity);
-void queue_put(CircularQueue *q, QueueElem value);
-QueueElem queue_get(CircularQueue *q);
-void queue_destroy(CircularQueue *q);
+int queue_init(CircularQueue** q, unsigned int capacity);
+void queue_put(CircularQueue* q, QueueElem value);
+QueueElem queue_get(CircularQueue* q);
+void queue_destroy(CircularQueue* q);

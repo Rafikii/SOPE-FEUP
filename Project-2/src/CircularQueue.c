@@ -1,7 +1,5 @@
 #include "CircularQueue.h"
 
-#include "stdio.h"
-
 //------------------------------------------------------------------------------------------
 // Allocates space for circular queue 'q' having 'capacity' number of elements
 // Initializes semaphores & mutex needed to implement the producer-consumer paradigm
@@ -15,7 +13,7 @@ int queue_init(CircularQueue** q, unsigned int capacity) {
 	if (sem_init(&((*q)->full), 0, 0) != 0)
 		return -1;
 
-	if (pthread_mutex_init(&((*q)->mutex), NULL ) != 0)
+	if (pthread_mutex_init(&((*q)->mutex), NULL) != 0)
 		return -1;
 
 	(*q)->v = (QueueElem*) malloc(capacity * sizeof(QueueElem));
@@ -33,7 +31,7 @@ void queue_put(CircularQueue* q, QueueElem value) {
 	pthread_mutex_lock(&q->mutex);
 
 	q->v[q->last] = value;
-	printf("Added %d to queue.\n", (int) q->v[q->last]);
+	// printf("Added %d to queue.\n", (int) q->v[q->last]);
 
 	// updating tail position
 	q->last++;
@@ -51,7 +49,7 @@ QueueElem queue_get(CircularQueue* q) {
 	pthread_mutex_lock(&q->mutex);
 
 	QueueElem value = q->v[q->first];
-	printf("Removed %d from queue.\n", (int) q->v[q->first]);
+	// printf("Removed %d from queue.\n", (int) q->v[q->first]);
 
 	// updating head position
 	q->first++;

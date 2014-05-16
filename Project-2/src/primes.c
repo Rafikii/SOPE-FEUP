@@ -2,15 +2,16 @@
 #include <stdlib.h>
 #include <math.h>
 #include <unistd.h>
+#include <string.h>
+#include <errno.h>
 
 #include "CircularQueue.h"
 
 int DEBUG_MODE = 0;
 int QUEUE_SIZE = 10;
 
-int writeIndex;
+int writeIndex, primesListSize;
 unsigned long* primesList;
-int primesListSize;
 
 long n;
 sem_t termSem;
@@ -21,7 +22,8 @@ int compare(const void * a, const void * b) {
 }
 
 void addNumToPrimesList(int num) {
-	pthread_mutex_lock(&primesListAccessControlMutex);
+	if (pthread_mutex_lock(&primesListAccessControlMutex) != 0)
+		fprintf(stderr, "Error: Failed when locking primes list access control mutex: %s\n", strerror(errno));
 
 	primesList[writeIndex++] = num;
 	primesListSize++;
@@ -29,7 +31,8 @@ void addNumToPrimesList(int num) {
 	if (DEBUG_MODE)
 		printf("Added %d to primes list.\n", num);
 
-	pthread_mutex_unlock(&primesListAccessControlMutex);
+	if (pthread_mutex_unlock(&primesListAccessControlMutex) != 0)
+		fprintf(stderr, "Error: Failed when locking primes list access control mutex: %s\n", strerror(errno));
 }
 
 void printPrimesList() {
@@ -55,17 +58,24 @@ void* filterThread(void* arg) {
 		// signaling termination semaphore
 		if (DEBUG_MODE)
 			printf("Signaling semaphore: num > sqrt(n)\n");
-		sem_post(&termSem);
+		if (sem_post(&termSem) != 0)
+			fprintf(stderr, "Error: Failed when posting termination semaphore: %s\n", strerror(errno));
 	} else {
 		int temp = num;
 
 		// creating output circular queue
 		CircularQueue* outputCircularQueue;
-		queue_init(&outputCircularQueue, QUEUE_SIZE);
+		if (queue_init(&outputCircularQueue, QUEUE_SIZE) != 0) {
+			fprintf(stderr, "Error: Failed to initialize output circular queue.\n");
+			return NULL;
+		}
 
 		// creating filter thread
 		pthread_t ft;
-		pthread_create(&ft, NULL, filterThread, outputCircularQueue);
+		if (pthread_create(&ft, NULL, filterThread, outputCircularQueue) != 0) {
+			fprintf(stderr, "Error: Failed to create filter thread: %s\n", strerror(errno));
+			return NULL;
+		}
 
 		do {
 			// reading next element from the circular queue
@@ -85,7 +95,7 @@ void* filterThread(void* arg) {
 	// destroying input circular queue
 	queue_destroy(inputCircularQueue);
 
-	return NULL ;
+	return NULL;
 }
 
 void* initThreadFunc(void* arg) {
@@ -98,11 +108,17 @@ void* initThreadFunc(void* arg) {
 	if (n > 2) {
 		// creating output circular queue
 		CircularQueue* outputCircularQueue;
-		queue_init(&outputCircularQueue, QUEUE_SIZE);
+		if (queue_init(&outputCircularQueue, QUEUE_SIZE) != 0) {
+			fprintf(stderr, "Error: Failed to initialize output circular queue.\n");
+			return NULL;
+		}
 
 		// creating filter thread
 		pthread_t ft;
-		pthread_create(&ft, NULL, filterThread, outputCircularQueue);
+		if (pthread_create(&ft, NULL, filterThread, outputCircularQueue) != 0) {
+			fprintf(stderr, "Error: Failed to create filter thread: %s\n", strerror(errno));
+			return NULL;
+		}
 
 		// placing odd numbers in the output circular queue
 		int i;
@@ -115,15 +131,14 @@ void* initThreadFunc(void* arg) {
 		// signaling termination semaphore
 		if (DEBUG_MODE)
 			printf("Signaling semaphore: n = 2\n");
-		sem_post(&termSem);
+		if (sem_post(&termSem) != 0)
+			fprintf(stderr, "Error: Failed when posting termination semaphore: %s\n", strerror(errno));
 	}
 
 	return NULL ;
 }
 
 int main(int argc, char** argv) {
-	char* pEnd;
-
 	// validating number of arguments
 	if (argc <= 1 || argc > 4) {
 		printf("\n");
@@ -135,6 +150,8 @@ int main(int argc, char** argv) {
 
 		return -1;
 	}
+
+	char* pEnd;
 
 	// processing and validating <debug mode> paramater
 	if (argc == 4) {
@@ -179,6 +196,14 @@ int main(int argc, char** argv) {
 		return -1;
 	}
 
+	// if user does not specify queue size, use <n> for maximum performance
+	if (argc == 2) {
+		QUEUE_SIZE = n;
+
+		if (DEBUG_MODE)
+			printf("Setting QUEUE_SIZE to <n> for maximum performance.\n");
+	}
+
 	// displaying received data info
 	if (DEBUG_MODE) {
 		printf("---------------\n");
@@ -190,25 +215,36 @@ int main(int argc, char** argv) {
 	}
 
 	// initializing shared data
-	writeIndex = 0;
+	writeIndex = primesListSize = 0;
 	int allocationSize = 1.2 * n / log(n);
 	primesList = (unsigned long*) malloc(allocationSize * sizeof(unsigned long));
-	primesListSize = 0;
+	if (primesList == NULL) {
+		fprintf(stderr, "Error: Failed to allocate space for the primes list: %s\n", strerror(errno));
+		return -1;
+	}
 
 	// initializing termination semaphore
-	if (sem_init(&termSem, 0, 0) != 0)
+	if (sem_init(&termSem, 0, 0) != 0) {
+		fprintf(stderr, "Error: Failed to initialize termination semaphore: %s\n", strerror(errno));
 		return -1;
+	}
 
 	// initializing primes list access control mutex
-	if (pthread_mutex_init(&primesListAccessControlMutex, NULL) != 0)
+	if (pthread_mutex_init(&primesListAccessControlMutex, NULL) != 0) {
+		fprintf(stderr, "Error: Failed to initialize primes list access control mutex: %s\n", strerror(errno));
 		return -1;
+	}
 
 	// starting initial thread
 	pthread_t initThread;
-	pthread_create(&initThread, NULL, initThreadFunc, NULL);
+	if (pthread_create(&initThread, NULL, initThreadFunc, NULL) != 0) {
+		fprintf(stderr, "Error: Failed to create initial thread: %s\n", strerror(errno));
+		return -1;
+	}
 
 	// waiting for termination semaphore
-	sem_wait(&termSem);
+	if (sem_wait(&termSem) != 0)
+		fprintf(stderr, "Error: Failed when waiting for termination semaphore: %s\n", strerror(errno));
 
 	// sorting primes list
 	if (DEBUG_MODE)

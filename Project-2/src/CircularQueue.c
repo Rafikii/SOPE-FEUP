@@ -6,6 +6,8 @@
 // Initializes indexes of the head and tail of the queue
 int queue_init(CircularQueue** q, unsigned int capacity) {
 	*q = (CircularQueue*) malloc(sizeof(CircularQueue));
+	if (*q == NULL)
+		return -1;
 
 	if (sem_init(&((*q)->empty), 0, capacity) != 0)
 		return -1;
@@ -17,6 +19,9 @@ int queue_init(CircularQueue** q, unsigned int capacity) {
 		return -1;
 
 	(*q)->v = (QueueElem*) malloc(capacity * sizeof(QueueElem));
+	if ((*q)->v == NULL)
+		return -1;
+
 	(*q)->capacity = capacity;
 	(*q)->first = 0;
 	(*q)->last = 0;

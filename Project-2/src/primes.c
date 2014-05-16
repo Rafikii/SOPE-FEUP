@@ -125,7 +125,7 @@ int main(int argc, char** argv) {
 	char* pEnd;
 
 	// validating number of arguments
-	if (argc <= 1) {
+	if (argc <= 1 || argc > 4) {
 		printf("\n");
 		printf("Wrong number of arguments.\n");
 		printf("Usage: primes <n>\n");

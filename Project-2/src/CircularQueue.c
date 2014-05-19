@@ -93,6 +93,9 @@ QueueElem queue_get(CircularQueue* q) {
 // Frees space allocated for the queue elements and auxiliary management data
 // Must be called when the queue is no more needed
 void queue_destroy(CircularQueue* q) {
+	sem_destroy(&q->empty);
+	sem_destroy(&q->full);
+	pthread_mutex_destroy(&q->mutex);
 	free(q->v);
 	free(q);
 }

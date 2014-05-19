@@ -10,7 +10,7 @@
 int DEBUG_MODE = 0;
 int QUEUE_SIZE = 10;
 
-int writeIndex, primesListSize;
+int writeIndex;
 unsigned long* primesList;
 
 long n;
@@ -26,7 +26,6 @@ void addNumToPrimesList(int num) {
 		fprintf(stderr, "Error: Failed when locking primes list access control mutex: %s\n", strerror(errno));
 
 	primesList[writeIndex++] = num;
-	primesListSize++;
 
 	if (DEBUG_MODE)
 		printf("Added %d to primes list.\n", num);
@@ -37,7 +36,7 @@ void addNumToPrimesList(int num) {
 
 void printPrimesList() {
 	int i;
-	for (i = 0; i < primesListSize; i++)
+	for (i = 0; i < writeIndex; i++)
 		printf("%ld ", primesList[i]);
 	printf("\n");
 }
@@ -215,7 +214,7 @@ int main(int argc, char** argv) {
 	}
 
 	// initializing shared data
-	writeIndex = primesListSize = 0;
+	writeIndex = 0;
 	int allocationSize = 1.2 * n / log(n);
 	primesList = (unsigned long*) malloc(allocationSize * sizeof(unsigned long));
 	if (primesList == NULL) {
@@ -249,13 +248,18 @@ int main(int argc, char** argv) {
 	// sorting primes list
 	if (DEBUG_MODE)
 		printf("Sorting primes list\n");
-	qsort(primesList, primesListSize, sizeof(unsigned long), compare);
+	qsort(primesList, writeIndex, sizeof(unsigned long), compare);
 
 	// displaying primes list
 	printf("\n");
 	printf("The list of primes between 2 and %ld is:\n", n);
 	printPrimesList();
 	printf("\n");
+
+	// freeing memory
+	sem_destroy(&termSem);
+	pthread_mutex_destroy(&primesListAccessControlMutex);
+	free(primesList);
 
 	if (DEBUG_MODE)
 		printf("Program Terminated.\n");

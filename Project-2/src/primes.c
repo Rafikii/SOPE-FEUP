@@ -15,7 +15,25 @@ unsigned long* primesList;
 
 long n;
 sem_t termSem;
-pthread_mutex_t primesListAccessControlMutex;
+pthread_mutex_t primesListAccessControlMutex, mut;
+int threadCount;
+pthread_cond_t var;
+
+void incThreadCount() {
+	pthread_mutex_lock(&mut);
+	threadCount++;
+	//printf("threadCount: %d\n", threadCount);
+	pthread_cond_signal(&var);
+	pthread_mutex_unlock(&mut);
+}
+
+void decThreadCount() {
+	pthread_mutex_lock(&mut);
+	threadCount--;
+	//printf("threadCount: %d\n", threadCount);
+	pthread_cond_signal(&var);
+	pthread_mutex_unlock(&mut);
+}
 
 int compare(const void * a, const void * b) {
 	return *(unsigned long*) a - *(unsigned long*) b;
@@ -42,6 +60,8 @@ void printPrimesList() {
 }
 
 void* filterThread(void* arg) {
+	incThreadCount();
+
 	CircularQueue* inputCircularQueue = arg;
 
 	QueueElem num = queue_get(inputCircularQueue);
@@ -53,6 +73,14 @@ void* filterThread(void* arg) {
 			// reading next element from the circular queue
 			num = queue_get(inputCircularQueue);
 		} while (num != 0);
+
+		decThreadCount();
+
+		// waiting for all threads to terminate
+		pthread_mutex_lock(&mut);
+		while (threadCount != 0)
+			pthread_cond_wait(&var, &mut);
+		pthread_mutex_unlock(&mut);
 
 		// signaling termination semaphore
 		if (DEBUG_MODE)
@@ -80,19 +108,20 @@ void* filterThread(void* arg) {
 			// reading next element from the circular queue
 			num = queue_get(inputCircularQueue);
 
-			if (num % temp != 0)
+			// outputing element to circular queue if it
+			// is not a multiple of temp or it is equal to 0
+			if (num % temp != 0 || num == 0)
 				queue_put(outputCircularQueue, num);
 		} while (num != 0);
 
 		// adding first number to primes list
 		addNumToPrimesList(temp);
-
-		// placing num (that by now should be equal to zero) at the end of the queue to terminate the sequence
-		queue_put(outputCircularQueue, num);
 	}
 
 	// destroying input circular queue
 	queue_destroy(inputCircularQueue);
+
+	decThreadCount();
 
 	return NULL;
 }
@@ -233,6 +262,14 @@ int main(int argc, char** argv) {
 		fprintf(stderr, "Error: Failed to initialize primes list access control mutex: %s\n", strerror(errno));
 		return -1;
 	}
+
+	// initializing mut
+	threadCount = 0;
+	if (pthread_mutex_init(&mut, NULL) != 0) {
+		fprintf(stderr, "Error: Failed to initialize primes list access control mutex: %s\n", strerror(errno));
+		return -1;
+	}
+	pthread_cond_init(&var, NULL);
 
 	// starting initial thread
 	pthread_t initThread;

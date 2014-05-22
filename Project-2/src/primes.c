@@ -197,7 +197,7 @@ int main(int argc, char** argv) {
 
 	// if user does not specify queue size, use <n> for maximum performance
 	if (argc == 2) {
-		QUEUE_SIZE = n;
+		QUEUE_SIZE = n / 2;
 
 		if (DEBUG_MODE)
 			printf("Setting QUEUE_SIZE to <n> for maximum performance.\n");
@@ -215,7 +215,7 @@ int main(int argc, char** argv) {
 
 	// initializing shared data
 	writeIndex = 0;
-	int allocationSize = 1.2 * n / log(n);
+	int allocationSize = ceil(1.2 * n / log(n)) + 1;
 	primesList = (unsigned long*) malloc(allocationSize * sizeof(unsigned long));
 	if (primesList == NULL) {
 		fprintf(stderr, "Error: Failed to allocate space for the primes list: %s\n", strerror(errno));

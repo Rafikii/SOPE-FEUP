@@ -1,4 +1,4 @@
-#SOPE - MIEIC
+#SOPE - FEUP
 
 #####Project summary:  
 A program to generate a list of prime numbers based on the [sieve of Eratosthenes](http://en.wikipedia.org/wiki/Sieve_of_Eratosthenes).  
@@ -11,7 +11,7 @@ Authors:
 Professor:
 - Jorge Silva
 
-2014 - FEUP
+MIEIC - 2014
 
 ***
 Speed Tests

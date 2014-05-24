@@ -1,6 +1,6 @@
 //------------------------------------------------------------------------------------------
-// SOPE - MIEIC
-// 2014 - FEUP
+// SOPE - FEUP
+// MIEIC - 2014
 //
 // Project summary:
 // A program to generate a list of prime numbers based on the sieve of Eratosthenes.
@@ -22,6 +22,7 @@
 //------------------------------------------------------------------------------------------
 // Usage options variables and their default values
 int DEBUG_MODE = 0;
+int DISPLAY_LIST = 1;
 int QUEUE_SIZE = 10;
 int USE_COND_VAR = 1;
 
@@ -120,6 +121,9 @@ void* filterThread(void* arg) {
 
 	// if the 'head' is greater than the square root of 'n'
 	if (num > sqrt(n)) {
+		if (DEBUG_MODE)
+			printf("num > sqrt(n)\n");
+
 		// add all the input queue elements to the list of primes
 		do {
 			// add num to primes list
@@ -251,13 +255,14 @@ void* initThreadFunc(void* arg) {
 // Function to validate and process the arguments received
 int processAndValidateArguments(int argc, char** argv) {
 	// validate the number of arguments
-	if (argc <= 1 || argc > 5) {
+	if (argc <= 1 || argc > 6) {
 		printf("\n");
 		printf("Wrong number of arguments.\n");
 		printf("Usage: primes <n>\n");
 		printf("Usage: primes <n> <debug mode>\n");
-		printf("Usage: primes <n> <debug mode> <use cond var>\n");
-		printf("Usage: primes <n> <debug mode> <use cond var> <queue size>\n");
+		printf("Usage: primes <n> <debug mode> <display list>\n");
+		printf("Usage: primes <n> <debug mode> <display list> <use cond var>\n");
+		printf("Usage: primes <n> <debug mode> <display list> <use cond var> <queue size>\n");
 		printf("\n");
 
 		return -1;
@@ -265,6 +270,17 @@ int processAndValidateArguments(int argc, char** argv) {
 
 	// pointer to assure valid convertion from string to long
 	char* pEnd;
+
+	// process and validate <n> paramater
+	n = strtol(argv[1], &pEnd, 10);
+	if (argv[1] == pEnd || n < 2) {
+		printf("\n");
+		printf("Invalid argument.\n");
+		printf("<n> must be an integer greater than or equal to 2.\n");
+		printf("\n");
+
+		return -1;
+	}
 
 	// process and validate <debug mode> paramater
 	if (argc > 2) {
@@ -285,10 +301,26 @@ int processAndValidateArguments(int argc, char** argv) {
 	if (DEBUG_MODE)
 		printf("> Processing and validating received arguments.\n");
 
-	// process and validate <use cond var> paramater
+	// process and validate <display list> paramater
 	if (argc > 3) {
-		USE_COND_VAR = strtol(argv[3], &pEnd, 10);
-		if (argv[3] == pEnd || (USE_COND_VAR != 0 && USE_COND_VAR != 1)) {
+		DISPLAY_LIST = strtol(argv[3], &pEnd, 10);
+		if (argv[3] == pEnd || (DISPLAY_LIST != 0 && DISPLAY_LIST != 1)) {
+			printf("\n");
+			printf("Invalid argument.\n");
+			printf("<display list> must be 0 or 1.\n");
+			printf("\n");
+
+			return -1;
+		}
+
+		if (DEBUG_MODE)
+			printf("DISPLAY_LIST value overrided to: %d\n", DISPLAY_LIST);
+	}
+
+	// process and validate <use cond var> paramater
+	if (argc > 4) {
+		USE_COND_VAR = strtol(argv[4], &pEnd, 10);
+		if (argv[4] == pEnd || (USE_COND_VAR != 0 && USE_COND_VAR != 1)) {
 			printf("\n");
 			printf("Invalid argument.\n");
 			printf("<use cond var> must be 0 (simple mode) or 1 (use condition variable).\n");
@@ -302,9 +334,9 @@ int processAndValidateArguments(int argc, char** argv) {
 	}
 
 	// process and validate <queue size> paramater
-	if (argc > 4) {
-		QUEUE_SIZE = strtol(argv[4], &pEnd, 10);
-		if (argv[4] == pEnd || QUEUE_SIZE <= 0) {
+	if (argc > 5) {
+		QUEUE_SIZE = strtol(argv[5], &pEnd, 10);
+		if (argv[5] == pEnd || QUEUE_SIZE <= 0) {
 			printf("\n");
 			printf("Invalid argument.\n");
 			printf("<queue size> must be an integer greater than 0.\n");
@@ -315,21 +347,8 @@ int processAndValidateArguments(int argc, char** argv) {
 
 		if (DEBUG_MODE)
 			printf("QUEUE_SIZE value overrided to: %d\n", QUEUE_SIZE);
-	}
-
-	// process and validate <n> paramater
-	n = strtol(argv[1], &pEnd, 10);
-	if (argv[1] == pEnd || n < 2) {
-		printf("\n");
-		printf("Invalid argument.\n");
-		printf("<n> must be an integer greater than or equal to 2.\n");
-		printf("\n");
-
-		return -1;
-	}
-
-	// if user does not specify queue size
-	if (argc < 4) {
+	} else {
+		// if user does not specify queue size
 		// override it to n/2 for maximum performance
 		QUEUE_SIZE = n / 2;
 
@@ -391,6 +410,7 @@ int initializeProgramData() {
 		printf("- > Primes info\n");
 		printf("- n: %ld\n", n);
 		printf("- debug mode: %d\n", DEBUG_MODE);
+		printf("- display list: %d\n", DISPLAY_LIST);
 		printf("- using condVar: %d\n", USE_COND_VAR);
 		printf("- queue size: %d\n", QUEUE_SIZE);
 		printf("--------------------\n");
@@ -470,10 +490,12 @@ int main(int argc, char** argv) {
 	qsort(primesList, writeIndex, sizeof(unsigned long), compare);
 
 	// finally display the list of prime numbers
-	printf("\n");
-	printf("The list of prime numbers between 2 and %ld is:\n", n);
-	printPrimesList();
-	printf("\n");
+	if (DISPLAY_LIST) {
+		printf("\n");
+		printf("The list of prime numbers between 2 and %ld is:\n", n);
+		printPrimesList();
+		printf("\n");
+	}
 
 	// free memory
 	if (freeProgramMemory() != 0) {

@@ -6,9 +6,9 @@
 // A program to generate a list of prime numbers based on the sieve of Eratosthenes.
 // Implemented using a circular queue, threads, semaphores, mutexes and condition variables.
 //
-// Authors:								Professor:
-// Henrique Ferrolho					Jorge Silva
-// Rafaela Faria
+// Authors:							Professor:
+// 	Henrique Ferrolho					Jorge Silva
+// 	Rafaela Faria
 //------------------------------------------------------------------------------------------
 #include <stdio.h>
 #include <stdlib.h>
@@ -38,7 +38,7 @@ pthread_mutex_t primesListAccessControlMutex;
 
 //------------------------------------------------------------------------------------------
 // Global variables to use the condition variable
-int runningThreadsCount;
+int runningThreadsCounter;
 pthread_cond_t condVar;
 pthread_mutex_t condVarMutex;
 
@@ -49,30 +49,30 @@ int compare(const void* a, const void* b) {
 }
 
 //------------------------------------------------------------------------------------------
-// Functions to manipulate runningThreadsCount variable
-void changeRunningThreadsCount(int value) {
+// Functions to manipulate runningThreadsCounter variable
+void changeRunningThreadsCounter(int value) {
 	pthread_mutex_lock(&condVarMutex);
 
-	runningThreadsCount += value;
+	runningThreadsCounter += value;
 	if (DEBUG_MODE)
-		printf("Number of running threads: %d\n", runningThreadsCount);
+		printf("Number of running threads: %d\n", runningThreadsCounter);
 
 	pthread_cond_signal(&condVar);
 	pthread_mutex_unlock(&condVarMutex);
 }
 
-void incRunningThreadsCount() {
+void incRunningThreadsCounter() {
 	if (DEBUG_MODE)
 		printf("Incrementing running threads counter.\n");
 
-	changeRunningThreadsCount(1);
+	changeRunningThreadsCounter(1);
 }
 
-void decRunningThreadsCount() {
+void decRunningThreadsCounter() {
 	if (DEBUG_MODE)
 		printf("Decrementing running threads counter.\n");
 
-	changeRunningThreadsCount(-1);
+	changeRunningThreadsCounter(-1);
 }
 
 //------------------------------------------------------------------------------------------
@@ -107,7 +107,7 @@ void* filterThread(void* arg) {
 		printf("> Starting a filter thread\n");
 
 	// first of all, update 'runningThreadsCounter'
-	incRunningThreadsCount();
+	incRunningThreadsCounter();
 
 	// get the input circular queue from the argument received
 	CircularQueue* inputCircularQueue = (CircularQueue*) arg;
@@ -127,12 +127,12 @@ void* filterThread(void* arg) {
 		} while (num != 0);
 
 		// update 'runningThreadsCounter'
-		decRunningThreadsCount();
+		decRunningThreadsCounter();
 
 		// wait for all the threads to terminate by using 'condVar'
 		pthread_mutex_lock(&condVarMutex);
-		// this is NOT a busy waiting
-		while (runningThreadsCount != 0)
+		// this is NOT busy waiting
+		while (runningThreadsCounter != 0)
 			pthread_cond_wait(&condVar, &condVarMutex);
 		pthread_mutex_unlock(&condVarMutex);
 
@@ -174,7 +174,7 @@ void* filterThread(void* arg) {
 		addNumToPrimesList(temp);
 
 		// update 'runningThreadsCounter'
-		decRunningThreadsCount();
+		decRunningThreadsCounter();
 	}
 
 	// destroy the input circular queue
@@ -347,8 +347,8 @@ int initializeProgramData() {
 		return -1;
 	}
 
-	// initialize condition variable, condition variable mutex and 'runningThreadsCount'
-	runningThreadsCount = 0;
+	// initialize condition variable, condition variable mutex and 'runningThreadsCounter'
+	runningThreadsCounter = 0;
 	if (pthread_cond_init(&condVar, NULL) != 0) {
 		fprintf(stderr, "Error: Failed to initialize condition variable: %s\n", strerror(errno));
 		return -1;

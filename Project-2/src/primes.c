@@ -23,7 +23,7 @@
 // Usage options variables and their default values
 int DEBUG_MODE = 0;
 int QUEUE_SIZE = 10;
-int THREAD_TERMINATION_MODE = 1;
+int USE_COND_VAR = 1;
 
 //------------------------------------------------------------------------------------------
 // Global variables to store the list of primes
@@ -106,8 +106,8 @@ void* filterThread(void* arg) {
 	if (DEBUG_MODE)
 		printf("> Starting a filter thread\n");
 
-	// if thread termination mode control is using the conditional variable mechanism
-	if (THREAD_TERMINATION_MODE) {
+	// if using conditional variable for thread termination mechanism
+	if (USE_COND_VAR) {
 		// first of all, update 'runningThreadsCounter'
 		incRunningThreadsCounter();
 	}
@@ -129,8 +129,8 @@ void* filterThread(void* arg) {
 			num = queue_get(inputCircularQueue);
 		} while (num != 0);
 
-		// if thread termination mode control is using the conditional variable mechanism
-		if (THREAD_TERMINATION_MODE) {
+		// if using conditional variable for thread termination mechanism
+		if (USE_COND_VAR) {
 			// update 'runningThreadsCounter'
 			decRunningThreadsCounter();
 
@@ -170,8 +170,8 @@ void* filterThread(void* arg) {
 			// read element from the circular queue
 			num = queue_get(inputCircularQueue);
 
-			// if thread termination mode control is using the conditional variable mechanism
-			if (THREAD_TERMINATION_MODE) {
+			// if using conditional variable for thread termination mechanism
+			if (USE_COND_VAR) {
 				// put read element in the output circular queue if
 				// it is not a multiple of temp or it is equal to 0
 				if (num % temp != 0 || num == 0)
@@ -187,8 +187,8 @@ void* filterThread(void* arg) {
 		// add the temporarily saved 'head' of the input queue to the primes list
 		addNumToPrimesList(temp);
 
-		// if thread termination mode control is using the conditional variable mechanism
-		if (THREAD_TERMINATION_MODE) {
+		// if using conditional variable for thread termination mechanism
+		if (USE_COND_VAR) {
 			// update 'runningThreadsCounter'
 			decRunningThreadsCounter();
 		} else {
@@ -256,8 +256,8 @@ int processAndValidateArguments(int argc, char** argv) {
 		printf("Wrong number of arguments.\n");
 		printf("Usage: primes <n>\n");
 		printf("Usage: primes <n> <debug mode>\n");
-		printf("Usage: primes <n> <debug mode> <thread termination mode>\n");
-		printf("Usage: primes <n> <debug mode> <thread termination mode> <queue size>\n");
+		printf("Usage: primes <n> <debug mode> <use cond var>\n");
+		printf("Usage: primes <n> <debug mode> <use cond var> <queue size>\n");
 		printf("\n");
 
 		return -1;
@@ -285,20 +285,20 @@ int processAndValidateArguments(int argc, char** argv) {
 	if (DEBUG_MODE)
 		printf("> Processing and validating received arguments.\n");
 
-	// process and validate <thread termination mode> paramater
+	// process and validate <use cond var> paramater
 	if (argc > 3) {
-		THREAD_TERMINATION_MODE = strtol(argv[3], &pEnd, 10);
-		if (argv[3] == pEnd || (THREAD_TERMINATION_MODE != 0 && THREAD_TERMINATION_MODE != 1)) {
+		USE_COND_VAR = strtol(argv[3], &pEnd, 10);
+		if (argv[3] == pEnd || (USE_COND_VAR != 0 && USE_COND_VAR != 1)) {
 			printf("\n");
 			printf("Invalid argument.\n");
-			printf("<thread termination mode> must be 0 (simple mode) or 1 (use condition variable).\n");
+			printf("<use cond var> must be 0 (simple mode) or 1 (use condition variable).\n");
 			printf("\n");
 
 			return -1;
 		}
 
 		if (DEBUG_MODE)
-			printf("THREAD_TERMINATION_MODE value overrided to: %d\n", THREAD_TERMINATION_MODE);
+			printf("USE_COND_VAR value overrided to: %d\n", USE_COND_VAR);
 	}
 
 	// process and validate <queue size> paramater
@@ -367,8 +367,8 @@ int initializeProgramData() {
 		return -1;
 	}
 
-	// if thread termination mode control is using the conditional variable mechanism
-	if (THREAD_TERMINATION_MODE) {
+	// if using conditional variable for thread termination mechanism
+	if (USE_COND_VAR) {
 		// initialize 'runningThreadsCounter'
 		runningThreadsCounter = 0;
 
@@ -391,7 +391,7 @@ int initializeProgramData() {
 		printf("- > Primes info\n");
 		printf("- n: %ld\n", n);
 		printf("- debug mode: %d\n", DEBUG_MODE);
-		printf("- using condVar: %d\n", THREAD_TERMINATION_MODE);
+		printf("- using condVar: %d\n", USE_COND_VAR);
 		printf("- queue size: %d\n", QUEUE_SIZE);
 		printf("--------------------\n");
 	}
@@ -420,8 +420,8 @@ int freeProgramMemory() {
 		return -1;
 	}
 
-	// if thread termination mode control is using the conditional variable mechanism
-	if (THREAD_TERMINATION_MODE) {
+	// if using conditional variable for thread termination mechanism
+	if (USE_COND_VAR) {
 		// destroy 'condVar'
 		if (pthread_cond_destroy(&condVar) != 0) {
 			fprintf(stderr, "Error: Failed to destroy the condition variable: %s\n", strerror(errno));

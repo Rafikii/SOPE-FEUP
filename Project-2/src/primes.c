@@ -23,7 +23,7 @@
 // Usage options variables and their default values
 int DEBUG_MODE = 0;
 int QUEUE_SIZE = 10;
-int THREAD_TERMINATION_MODE = 0;
+int THREAD_TERMINATION_MODE = 1;
 
 //------------------------------------------------------------------------------------------
 // Global variables to store the list of primes
@@ -106,8 +106,11 @@ void* filterThread(void* arg) {
 	if (DEBUG_MODE)
 		printf("> Starting a filter thread\n");
 
-	// first of all, update 'runningThreadsCounter'
-	incRunningThreadsCounter();
+	// if thread termination mode control is using the conditional variable mechanism
+	if (THREAD_TERMINATION_MODE) {
+		// first of all, update 'runningThreadsCounter'
+		incRunningThreadsCounter();
+	}
 
 	// get the input circular queue from the argument received
 	CircularQueue* inputCircularQueue = (CircularQueue*) arg;
@@ -126,15 +129,18 @@ void* filterThread(void* arg) {
 			num = queue_get(inputCircularQueue);
 		} while (num != 0);
 
-		// update 'runningThreadsCounter'
-		decRunningThreadsCounter();
+		// if thread termination mode control is using the conditional variable mechanism
+		if (THREAD_TERMINATION_MODE) {
+			// update 'runningThreadsCounter'
+			decRunningThreadsCounter();
 
-		// wait for all the threads to terminate by using 'condVar'
-		pthread_mutex_lock(&condVarMutex);
-		// this is NOT busy waiting
-		while (runningThreadsCounter != 0)
-			pthread_cond_wait(&condVar, &condVarMutex);
-		pthread_mutex_unlock(&condVarMutex);
+			// wait for all the threads to terminate by using 'condVar'
+			pthread_mutex_lock(&condVarMutex);
+			// this is NOT busy waiting
+			while (runningThreadsCounter != 0)
+				pthread_cond_wait(&condVar, &condVarMutex);
+			pthread_mutex_unlock(&condVarMutex);
+		}
 
 		// signal termination semaphore
 		if (DEBUG_MODE)
@@ -164,17 +170,31 @@ void* filterThread(void* arg) {
 			// read element from the circular queue
 			num = queue_get(inputCircularQueue);
 
-			// put read element in the output circular queue if
-			// it is not a multiple of temp or it is equal to 0
-			if (num % temp != 0 || num == 0)
-				queue_put(outputCircularQueue, num);
+			// if thread termination mode control is using the conditional variable mechanism
+			if (THREAD_TERMINATION_MODE) {
+				// put read element in the output circular queue if
+				// it is not a multiple of temp or it is equal to 0
+				if (num % temp != 0 || num == 0)
+					queue_put(outputCircularQueue, num);
+			} else {
+				// put read element in the output circular queue if
+				// it is not a multiple of temp
+				if (num % temp != 0)
+					queue_put(outputCircularQueue, num);
+			}
 		} while (num != 0);
 
 		// add the temporarily saved 'head' of the input queue to the primes list
 		addNumToPrimesList(temp);
 
-		// update 'runningThreadsCounter'
-		decRunningThreadsCounter();
+		// if thread termination mode control is using the conditional variable mechanism
+		if (THREAD_TERMINATION_MODE) {
+			// update 'runningThreadsCounter'
+			decRunningThreadsCounter();
+		} else {
+			// placing num (that by now should be equal to zero) at the end of the queue to terminate the sequence
+			queue_put(outputCircularQueue, num);
+		}
 	}
 
 	// destroy the input circular queue
@@ -236,8 +256,8 @@ int processAndValidateArguments(int argc, char** argv) {
 		printf("Wrong number of arguments.\n");
 		printf("Usage: primes <n>\n");
 		printf("Usage: primes <n> <debug mode>\n");
-		printf("Usage: primes <n> <debug mode> <queue size> \n");
-		printf("Usage: primes <n> <debug mode> <queue size> <thread termination mode>\n");
+		printf("Usage: primes <n> <debug mode> <thread termination mode>\n");
+		printf("Usage: primes <n> <debug mode> <thread termination mode> <queue size>\n");
 		printf("\n");
 
 		return -1;
@@ -265,26 +285,10 @@ int processAndValidateArguments(int argc, char** argv) {
 	if (DEBUG_MODE)
 		printf("> Processing and validating received arguments.\n");
 
-	// process and validate <queue size> paramater
-	if (argc > 3) {
-		QUEUE_SIZE = strtol(argv[3], &pEnd, 10);
-		if (argv[3] == pEnd || QUEUE_SIZE <= 0) {
-			printf("\n");
-			printf("Invalid argument.\n");
-			printf("<queue size> must be an integer greater than 0.\n");
-			printf("\n");
-
-			return -1;
-		}
-
-		if (DEBUG_MODE)
-			printf("QUEUE_SIZE value overrided to: %d\n", QUEUE_SIZE);
-	}
-
 	// process and validate <thread termination mode> paramater
-	if (argc > 4) {
-		THREAD_TERMINATION_MODE = strtol(argv[4], &pEnd, 10);
-		if (argv[4] == pEnd || (THREAD_TERMINATION_MODE != 0 && THREAD_TERMINATION_MODE != 1)) {
+	if (argc > 3) {
+		THREAD_TERMINATION_MODE = strtol(argv[3], &pEnd, 10);
+		if (argv[3] == pEnd || (THREAD_TERMINATION_MODE != 0 && THREAD_TERMINATION_MODE != 1)) {
 			printf("\n");
 			printf("Invalid argument.\n");
 			printf("<thread termination mode> must be 0 (simple mode) or 1 (use condition variable).\n");
@@ -295,6 +299,22 @@ int processAndValidateArguments(int argc, char** argv) {
 
 		if (DEBUG_MODE)
 			printf("THREAD_TERMINATION_MODE value overrided to: %d\n", THREAD_TERMINATION_MODE);
+	}
+
+	// process and validate <queue size> paramater
+	if (argc > 4) {
+		QUEUE_SIZE = strtol(argv[4], &pEnd, 10);
+		if (argv[4] == pEnd || QUEUE_SIZE <= 0) {
+			printf("\n");
+			printf("Invalid argument.\n");
+			printf("<queue size> must be an integer greater than 0.\n");
+			printf("\n");
+
+			return -1;
+		}
+
+		if (DEBUG_MODE)
+			printf("QUEUE_SIZE value overrided to: %d\n", QUEUE_SIZE);
 	}
 
 	// process and validate <n> paramater
@@ -347,25 +367,33 @@ int initializeProgramData() {
 		return -1;
 	}
 
-	// initialize condition variable, condition variable mutex and 'runningThreadsCounter'
-	runningThreadsCounter = 0;
-	if (pthread_cond_init(&condVar, NULL) != 0) {
-		fprintf(stderr, "Error: Failed to initialize condition variable: %s\n", strerror(errno));
-		return -1;
-	}
-	if (pthread_mutex_init(&condVarMutex, NULL) != 0) {
-		fprintf(stderr, "Error: Failed to initialize condition variable mutex: %s\n", strerror(errno));
-		return -1;
+	// if thread termination mode control is using the conditional variable mechanism
+	if (THREAD_TERMINATION_MODE) {
+		// initialize 'runningThreadsCounter'
+		runningThreadsCounter = 0;
+
+		// initialize condition variable
+		if (pthread_cond_init(&condVar, NULL) != 0) {
+			fprintf(stderr, "Error: Failed to initialize condition variable: %s\n", strerror(errno));
+			return -1;
+		}
+
+		// initialize condition variable mutex
+		if (pthread_mutex_init(&condVarMutex, NULL) != 0) {
+			fprintf(stderr, "Error: Failed to initialize condition variable mutex: %s\n", strerror(errno));
+			return -1;
+		}
 	}
 
 	if (DEBUG_MODE) {
 		// displaying received data info
-		printf("---------------\n");
-		printf("Primes info:\n");
-		printf("n: %ld\n", n);
-		printf("queue size: %d\n", QUEUE_SIZE);
-		printf("debug mode: %d\n", DEBUG_MODE);
-		printf("---------------\n");
+		printf("--------------------\n");
+		printf("- > Primes info\n");
+		printf("- n: %ld\n", n);
+		printf("- debug mode: %d\n", DEBUG_MODE);
+		printf("- using condVar: %d\n", THREAD_TERMINATION_MODE);
+		printf("- queue size: %d\n", QUEUE_SIZE);
+		printf("--------------------\n");
 	}
 
 	return 0;
@@ -392,16 +420,19 @@ int freeProgramMemory() {
 		return -1;
 	}
 
-	// destroy 'condVar'
-	if (pthread_cond_destroy(&condVar) != 0) {
-		fprintf(stderr, "Error: Failed to destroy the condition variable: %s\n", strerror(errno));
-		return -1;
-	}
+	// if thread termination mode control is using the conditional variable mechanism
+	if (THREAD_TERMINATION_MODE) {
+		// destroy 'condVar'
+		if (pthread_cond_destroy(&condVar) != 0) {
+			fprintf(stderr, "Error: Failed to destroy the condition variable: %s\n", strerror(errno));
+			return -1;
+		}
 
-	// destroy 'condVarMutex'
-	if (pthread_mutex_destroy(&condVarMutex) != 0) {
-		fprintf(stderr, "Error: Failed to destroy the condition variable mutex: %s\n", strerror(errno));
-		return -1;
+		// destroy 'condVarMutex'
+		if (pthread_mutex_destroy(&condVarMutex) != 0) {
+			fprintf(stderr, "Error: Failed to destroy the condition variable mutex: %s\n", strerror(errno));
+			return -1;
+		}
 	}
 
 	return 0;

@@ -1,9 +1,22 @@
-Optimization Tests
-------------------
+Speed Tests
+-----------
+
+*24th, May - 2014*
+Using commit:  
+
+Using the commands:  
+- Simple mode:
+````
+time ./bin/primes n 0 0
+````
+- Using condVar:
+````
+time ./bin/primes n 0 1
+````
 
 **n = 100**
 
-| Run no. | Simple Mode | Using condVar |
+| Run no. | Simple mode | Using condVar |
 | ------: | :---------- | :------------ |
 | 1       | 0.004s      | 0.004s	    	|
 | 2       | 0.005s      | 0.004s	    	|
@@ -13,7 +26,7 @@ Optimization Tests
 
 **n = 1 000**
 
-| Run no. | Simple Mode | Using condVar |
+| Run no. | Simple mode | Using condVar |
 | ------: | :---------- | :------------ |
 | 1       | 0.007s      | 0.008s	    	|
 | 2       | 0.008s      | 0.007s	    	|
@@ -23,7 +36,7 @@ Optimization Tests
 
 **n = 10 000**
 
-| Run no. | Simple Mode | Using condVar |
+| Run no. | Simple mode | Using condVar |
 | ------: | :---------- | :------------ |
 | 1       | 0.042s      | 0.040s	    	|
 | 2       | 0.044s      | 0.043s	    	|
@@ -33,30 +46,30 @@ Optimization Tests
 
 **n = 100 000**
 
-| Run no. | Simple Mode | Using condVar |
+| Run no. | Simple mode | Using condVar |
 | ------: | :---------- | :------------ |
-| 1       | X.XXXs      | X.XXXs	    	|
-| 2       | X.XXXs      | X.XXXs	    	|
-| 3       | X.XXXs      | X.XXXs	    	|
+| 1       | 0.485s      | 0.506s	    	|
+| 2       | 0.496s      | 0.485s	    	|
+| 3       | 0.498s      | 0.489s	    	|
 | Mean    | X.XXXs      | X.XXXs	    	|
 
 
 **n = 1 000 000**
 
-| Run no. | Simple Mode | Using condVar |
+| Run no. | Simple mode | Using condVar |
 | ------: | :---------- | :------------ |
-| 1       | X.XXXs      | X.XXXs	    	|
-| 2       | X.XXXs      | X.XXXs	    	|
-| 3       | X.XXXs      | X.XXXs	    	|
+| 1       | 8.267s      | 8.297s	    	|
+| 2       | 8.401s      | 8.230s	    	|
+| 3       | 8.232s      | 8.220s	    	|
 | Mean    | X.XXXs      | X.XXXs	    	|
 
 
 **n = 10 000 000**
 
-| Run no. | Simple Mode | Using condVar |
+| Run no. | Simple mode | Using condVar |
 | ------: | :---------- | :------------ |
-| 1       | X.XXXs      | X.XXXs	    	|
-| 2       | X.XXXs      | X.XXXs	    	|
-| 3       | X.XXXs      | X.XXXs	    	|
+| 1       | 3m08.341s      | 3m07.204s	    	|
+| 2       | 3m17.966s      | 3m11.508s	    	|
+| 3       | 3m17.896s      | 3m12.805s	    	|
 | Mean    | X.XXXs      | X.XXXs	    	|
 

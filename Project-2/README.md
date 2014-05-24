@@ -2,7 +2,8 @@ Speed Tests
 -----------
 
 *24th, May - 2014*
-Using commit:  
+
+Using [this](https://github.com/Rafikii/SOPE-FEUP/commit/cff5fc12cda00fd6a779fbaab5f7e5b89fe43ce9) commit.
 
 Using the commands:  
 - Simple mode:
@@ -51,7 +52,7 @@ time ./bin/primes n 0 1
 | 1       | 0.485s      | 0.506s	    	|
 | 2       | 0.496s      | 0.485s	    	|
 | 3       | 0.498s      | 0.489s	    	|
-| Mean    | X.XXXs      | X.XXXs	    	|
+| Mean    | 0.493s      | 0.493s	    	|
 
 
 **n = 1 000 000**
@@ -61,15 +62,15 @@ time ./bin/primes n 0 1
 | 1       | 8.267s      | 8.297s	    	|
 | 2       | 8.401s      | 8.230s	    	|
 | 3       | 8.232s      | 8.220s	    	|
-| Mean    | X.XXXs      | X.XXXs	    	|
+| Mean    | 8.300s      | 8.249s	    	|
 
 
 **n = 10 000 000**
 
 | Run no. | Simple mode | Using condVar |
 | ------: | :---------- | :------------ |
-| 1       | 3m08.341s      | 3m07.204s	    	|
-| 2       | 3m17.966s      | 3m11.508s	    	|
-| 3       | 3m17.896s      | 3m12.805s	    	|
-| Mean    | X.XXXs      | X.XXXs	    	|
+| 1       | 3m08.341s   | 3m07.204s	   	|
+| 2       | 3m17.966s   | 3m11.508s	   	|
+| 3       | 3m17.896s   | 3m12.805s	   	|
+| Mean    | 3m14.734s   | 3m10.506s	   	|
 

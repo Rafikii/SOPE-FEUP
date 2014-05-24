@@ -1,22 +1,14 @@
 Speed Tests
 -----------
 
-*24th, May - 2014*
+####24th, May - 2014
 
-Using [this](https://github.com/Rafikii/SOPE-FEUP/commit/cff5fc12cda00fd6a779fbaab5f7e5b89fe43ce9) commit.
+Using [this](https://github.com/Rafikii/SOPE-FEUP/commit/cff5fc12cda00fd6a779fbaab5f7e5b89fe43ce9) commit.  
+Using the commands:
+- Simple mode: ``` time ./bin/primes n 0 0 ```
+- Using condVar: ``` time ./bin/primes n 0 1 ```
 
-Using the commands:  
-- Simple mode:
-````
-time ./bin/primes n 0 0
-````
-- Using condVar:
-````
-time ./bin/primes n 0 1
-````
-
-**n = 100**
-
+#####n = 100
 | Run no. | Simple mode | Using condVar |
 | ------: | :---------- | :------------ |
 | 1       | 0.004s      | 0.004s	    	|
@@ -24,9 +16,7 @@ time ./bin/primes n 0 1
 | 3       | 0.004s		  | 0.004s	    	|
 | Mean    | 0.004s	    | 0.004s	    	|
 
-
-**n = 1 000**
-
+#####n = 1 000
 | Run no. | Simple mode | Using condVar |
 | ------: | :---------- | :------------ |
 | 1       | 0.007s      | 0.008s	    	|
@@ -34,9 +24,7 @@ time ./bin/primes n 0 1
 | 3       | 0.008s      | 0.007s	    	|
 | Mean    | 0.008s      | 0.007s	    	|
 
-
-**n = 10 000**
-
+#####n = 10 000
 | Run no. | Simple mode | Using condVar |
 | ------: | :---------- | :------------ |
 | 1       | 0.042s      | 0.040s	    	|
@@ -44,9 +32,7 @@ time ./bin/primes n 0 1
 | 3       | 0.042s      | 0.038s	    	|
 | Mean    | 0.043s      | 0.040s	    	|
 
-
-**n = 100 000**
-
+#####n = 100 000
 | Run no. | Simple mode | Using condVar |
 | ------: | :---------- | :------------ |
 | 1       | 0.485s      | 0.506s	    	|
@@ -54,9 +40,7 @@ time ./bin/primes n 0 1
 | 3       | 0.498s      | 0.489s	    	|
 | Mean    | 0.493s      | 0.493s	    	|
 
-
-**n = 1 000 000**
-
+#####n = 1 000 000
 | Run no. | Simple mode | Using condVar |
 | ------: | :---------- | :------------ |
 | 1       | 8.267s      | 8.297s	    	|
@@ -64,9 +48,7 @@ time ./bin/primes n 0 1
 | 3       | 8.232s      | 8.220s	    	|
 | Mean    | 8.300s      | 8.249s	    	|
 
-
-**n = 10 000 000**
-
+#####n = 10 000 000
 | Run no. | Simple mode | Using condVar |
 | ------: | :---------- | :------------ |
 | 1       | 3m08.341s   | 3m07.204s	   	|

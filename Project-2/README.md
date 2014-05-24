@@ -1,3 +1,19 @@
+#SOPE - MIEIC
+
+#####Project summary:  
+A program to generate a list of prime numbers based on the [sieve of Eratosthenes](http://en.wikipedia.org/wiki/Sieve_of_Eratosthenes).
+Implemented using a circular queue, threads, semaphores, mutexes and condition variables.
+
+Authors:
+- Henrique Ferrolho					
+- Rafaela Faria
+
+Professor:
+- Jorge Silva
+
+2014 - FEUP
+
+***
 Speed Tests
 -----------
 

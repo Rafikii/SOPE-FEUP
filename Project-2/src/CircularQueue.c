@@ -51,11 +51,7 @@ void queue_put(CircularQueue* q, QueueElem value) {
 	if (pthread_mutex_lock(&q->mutex) != 0)
 		fprintf(stderr, "Error: Failed when locking circular queue mutex: %s\n", strerror(errno));
 
-	q->v[q->last] = value;
-	// printf("Added %d to queue.\n", (int) q->v[q->last]);
-
-	// updating tail position
-	q->last++;
+	q->v[q->last++] = value;
 	if (q->last >= q->capacity)
 		q->last = 0;
 
@@ -73,11 +69,7 @@ QueueElem queue_get(CircularQueue* q) {
 	if (pthread_mutex_lock(&q->mutex) != 0)
 		fprintf(stderr, "Error: Failed when locking circular queue mutex: %s\n", strerror(errno));
 
-	QueueElem value = q->v[q->first];
-	// printf("Removed %d from queue.\n", (int) q->v[q->first]);
-
-	// updating head position
-	q->first++;
+	QueueElem value = q->v[q->first++];
 	if (q->first >= q->capacity)
 		q->first = 0;
 

@@ -1,3 +1,15 @@
+//------------------------------------------------------------------------------------------
+// SOPE - MIEIC
+// 2014 - FEUP
+//
+// Project summary:
+// A program to generate a list of prime numbers based on the sieve of Eratosthenes.
+// Implemented using a circular queue, threads, semaphores, mutexes and condition variables.
+//
+// Authors:								Professor:
+// Henrique Ferrolho					Jorge Silva
+// Rafaela Faria
+//------------------------------------------------------------------------------------------
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
@@ -7,38 +19,64 @@
 
 #include "CircularQueue.h"
 
+//------------------------------------------------------------------------------------------
+// Usage options variables and their default values
 int DEBUG_MODE = 0;
 int QUEUE_SIZE = 10;
+int THREAD_TERMINATION_MODE = 0;
 
+//------------------------------------------------------------------------------------------
+// Global variables to store the list of primes
 int writeIndex;
 unsigned long* primesList;
 
+//------------------------------------------------------------------------------------------
+// Program global variables
 long n;
 sem_t termSem;
-pthread_mutex_t primesListAccessControlMutex, mut;
-int threadCount;
-pthread_cond_t var;
+pthread_mutex_t primesListAccessControlMutex;
 
-void incThreadCount() {
-	pthread_mutex_lock(&mut);
-	threadCount++;
-	//printf("threadCount: %d\n", threadCount);
-	pthread_cond_signal(&var);
-	pthread_mutex_unlock(&mut);
-}
+//------------------------------------------------------------------------------------------
+// Global variables to use the condition variable
+int runningThreadsCount;
+pthread_cond_t condVar;
+pthread_mutex_t condVarMutex;
 
-void decThreadCount() {
-	pthread_mutex_lock(&mut);
-	threadCount--;
-	//printf("threadCount: %d\n", threadCount);
-	pthread_cond_signal(&var);
-	pthread_mutex_unlock(&mut);
-}
-
-int compare(const void * a, const void * b) {
+//------------------------------------------------------------------------------------------
+// Functions used to sort the final list of primes
+int compare(const void* a, const void* b) {
 	return *(unsigned long*) a - *(unsigned long*) b;
 }
 
+//------------------------------------------------------------------------------------------
+// Functions to manipulate runningThreadsCount variable
+void changeRunningThreadsCount(int value) {
+	pthread_mutex_lock(&condVarMutex);
+
+	runningThreadsCount += value;
+	if (DEBUG_MODE)
+		printf("Number of running threads: %d\n", runningThreadsCount);
+
+	pthread_cond_signal(&condVar);
+	pthread_mutex_unlock(&condVarMutex);
+}
+
+void incRunningThreadsCount() {
+	if (DEBUG_MODE)
+		printf("Incrementing running threads counter.\n");
+
+	changeRunningThreadsCount(1);
+}
+
+void decRunningThreadsCount() {
+	if (DEBUG_MODE)
+		printf("Decrementing running threads counter.\n");
+
+	changeRunningThreadsCount(-1);
+}
+
+//------------------------------------------------------------------------------------------
+// Adds number 'num' to the primes list safely using 'primesListAccessControlMutex'
 void addNumToPrimesList(int num) {
 	if (pthread_mutex_lock(&primesListAccessControlMutex) != 0)
 		fprintf(stderr, "Error: Failed when locking primes list access control mutex: %s\n", strerror(errno));
@@ -52,6 +90,8 @@ void addNumToPrimesList(int num) {
 		fprintf(stderr, "Error: Failed when locking primes list access control mutex: %s\n", strerror(errno));
 }
 
+//------------------------------------------------------------------------------------------
+// Prints the list of primes
 void printPrimesList() {
 	int i;
 	for (i = 0; i < writeIndex; i++)
@@ -59,104 +99,125 @@ void printPrimesList() {
 	printf("\n");
 }
 
+//------------------------------------------------------------------------------------------
+// Filter thread function:
+// Receives the address of a circular queue which contains the numbers to filter.
 void* filterThread(void* arg) {
-	incThreadCount();
+	if (DEBUG_MODE)
+		printf("> Starting a filter thread\n");
 
-	CircularQueue* inputCircularQueue = arg;
+	// first of all, update 'runningThreadsCounter'
+	incRunningThreadsCount();
 
+	// get the input circular queue from the argument received
+	CircularQueue* inputCircularQueue = (CircularQueue*) arg;
+
+	// read the 'head' of the input circular queue
 	QueueElem num = queue_get(inputCircularQueue);
+
+	// if the 'head' is greater than the square root of 'n'
 	if (num > sqrt(n)) {
+		// add all the input queue elements to the list of primes
 		do {
-			// adding num to primes list
+			// add num to primes list
 			addNumToPrimesList(num);
 
-			// reading next element from the circular queue
+			// read next element from the input circular queue
 			num = queue_get(inputCircularQueue);
 		} while (num != 0);
 
-		decThreadCount();
+		// update 'runningThreadsCounter'
+		decRunningThreadsCount();
 
-		// waiting for all threads to terminate
-		pthread_mutex_lock(&mut);
-		while (threadCount != 0)
-			pthread_cond_wait(&var, &mut);
-		pthread_mutex_unlock(&mut);
+		// wait for all the threads to terminate by using 'condVar'
+		pthread_mutex_lock(&condVarMutex);
+		// this is NOT a busy waiting
+		while (runningThreadsCount != 0)
+			pthread_cond_wait(&condVar, &condVarMutex);
+		pthread_mutex_unlock(&condVarMutex);
 
-		// signaling termination semaphore
+		// signal termination semaphore
 		if (DEBUG_MODE)
 			printf("Signaling semaphore: num > sqrt(n)\n");
 		if (sem_post(&termSem) != 0)
 			fprintf(stderr, "Error: Failed when posting termination semaphore: %s\n", strerror(errno));
 	} else {
+		// temporarily save the 'head' of the circular queue
 		int temp = num;
 
-		// creating output circular queue
+		// create output circular queue
 		CircularQueue* outputCircularQueue;
 		if (queue_init(&outputCircularQueue, QUEUE_SIZE) != 0) {
 			fprintf(stderr, "Error: Failed to initialize output circular queue.\n");
 			return NULL;
 		}
 
-		// creating filter thread
+		// create another filter thread
 		pthread_t ft;
 		if (pthread_create(&ft, NULL, filterThread, outputCircularQueue) != 0) {
 			fprintf(stderr, "Error: Failed to create filter thread: %s\n", strerror(errno));
 			return NULL;
 		}
 
+		// read all the input circular queue elems until '0' is read
 		do {
-			// reading next element from the circular queue
+			// read element from the circular queue
 			num = queue_get(inputCircularQueue);
 
-			// outputing element to circular queue if it
-			// is not a multiple of temp or it is equal to 0
+			// put read element in the output circular queue if
+			// it is not a multiple of temp or it is equal to 0
 			if (num % temp != 0 || num == 0)
 				queue_put(outputCircularQueue, num);
 		} while (num != 0);
 
-		// adding first number to primes list
+		// add the temporarily saved 'head' of the input queue to the primes list
 		addNumToPrimesList(temp);
+
+		// update 'runningThreadsCounter'
+		decRunningThreadsCount();
 	}
 
-	// destroying input circular queue
+	// destroy the input circular queue
 	queue_destroy(inputCircularQueue);
-
-	decThreadCount();
 
 	return NULL;
 }
 
+//------------------------------------------------------------------------------------------
+// Initial thread function:
 void* initThreadFunc(void* arg) {
 	if (DEBUG_MODE)
 		printf("> Starting initial thread\n");
 
-	// adding number 2 to primes list
+	// add number 2 to the primes list
 	addNumToPrimesList(2);
 
+	// if 'n' is greater than 2
 	if (n > 2) {
-		// creating output circular queue
+		// create output circular queue
 		CircularQueue* outputCircularQueue;
 		if (queue_init(&outputCircularQueue, QUEUE_SIZE) != 0) {
 			fprintf(stderr, "Error: Failed to initialize output circular queue.\n");
 			return NULL;
 		}
 
-		// creating filter thread
+		// create a filter thread
 		pthread_t ft;
 		if (pthread_create(&ft, NULL, filterThread, outputCircularQueue) != 0) {
 			fprintf(stderr, "Error: Failed to create filter thread: %s\n", strerror(errno));
 			return NULL;
 		}
 
-		// placing odd numbers in the output circular queue
+		// place all the odd numbers less than or equal to 'n' in the output circular queue
 		int i;
 		for (i = 3; i <= n; i += 2)
 			queue_put(outputCircularQueue, i);
 
-		// placing zero at the end of the queue to terminate the sequence
+		// place '0' at the end of the queue to terminate the sequence
 		queue_put(outputCircularQueue, 0);
 	} else {
-		// signaling termination semaphore
+		// if 'n' is equal to 2, there is no need to calculate any more prime numbers
+		// signal the termination semaphore
 		if (DEBUG_MODE)
 			printf("Signaling semaphore: n = 2\n");
 		if (sem_post(&termSem) != 0)
@@ -166,25 +227,29 @@ void* initThreadFunc(void* arg) {
 	return NULL ;
 }
 
-int main(int argc, char** argv) {
-	// validating number of arguments
-	if (argc <= 1 || argc > 4) {
+//------------------------------------------------------------------------------------------
+// Function to validate and process the arguments received
+int processAndValidateArguments(int argc, char** argv) {
+	// validate the number of arguments
+	if (argc <= 1 || argc > 5) {
 		printf("\n");
 		printf("Wrong number of arguments.\n");
 		printf("Usage: primes <n>\n");
-		printf("Usage: primes <n> <queue size>\n");
-		printf("Usage: primes <n> <queue size> <debug mode>\n");
+		printf("Usage: primes <n> <debug mode>\n");
+		printf("Usage: primes <n> <debug mode> <queue size> \n");
+		printf("Usage: primes <n> <debug mode> <queue size> <thread termination mode>\n");
 		printf("\n");
 
 		return -1;
 	}
 
+	// pointer to assure valid convertion from string to long
 	char* pEnd;
 
-	// processing and validating <debug mode> paramater
-	if (argc == 4) {
-		DEBUG_MODE = strtol(argv[3], &pEnd, 10);
-		if (argv[3] == pEnd || (DEBUG_MODE != 0 && DEBUG_MODE != 1)) {
+	// process and validate <debug mode> paramater
+	if (argc > 2) {
+		DEBUG_MODE = strtol(argv[2], &pEnd, 10);
+		if (argv[2] == pEnd || (DEBUG_MODE != 0 && DEBUG_MODE != 1)) {
 			printf("\n");
 			printf("Invalid argument.\n");
 			printf("<debug mode> must be 0 or 1.\n");
@@ -197,10 +262,13 @@ int main(int argc, char** argv) {
 			printf("DEBUG_MODE value overrided to: %d\n", DEBUG_MODE);
 	}
 
-	// processing and validating <queue size> paramater
-	if (argc >= 3) {
-		QUEUE_SIZE = strtol(argv[2], &pEnd, 10);
-		if (argv[2] == pEnd || QUEUE_SIZE <= 0) {
+	if (DEBUG_MODE)
+		printf("> Processing and validating received arguments.\n");
+
+	// process and validate <queue size> paramater
+	if (argc > 3) {
+		QUEUE_SIZE = strtol(argv[3], &pEnd, 10);
+		if (argv[3] == pEnd || QUEUE_SIZE <= 0) {
 			printf("\n");
 			printf("Invalid argument.\n");
 			printf("<queue size> must be an integer greater than 0.\n");
@@ -213,7 +281,23 @@ int main(int argc, char** argv) {
 			printf("QUEUE_SIZE value overrided to: %d\n", QUEUE_SIZE);
 	}
 
-	// processing and validating <n> paramater
+	// process and validate <thread termination mode> paramater
+	if (argc > 4) {
+		THREAD_TERMINATION_MODE = strtol(argv[4], &pEnd, 10);
+		if (argv[4] == pEnd || (THREAD_TERMINATION_MODE != 0 && THREAD_TERMINATION_MODE != 1)) {
+			printf("\n");
+			printf("Invalid argument.\n");
+			printf("<thread termination mode> must be 0 (simple mode) or 1 (use condition variable).\n");
+			printf("\n");
+
+			return -1;
+		}
+
+		if (DEBUG_MODE)
+			printf("THREAD_TERMINATION_MODE value overrided to: %d\n", THREAD_TERMINATION_MODE);
+	}
+
+	// process and validate <n> paramater
 	n = strtol(argv[1], &pEnd, 10);
 	if (argv[1] == pEnd || n < 2) {
 		printf("\n");
@@ -224,25 +308,25 @@ int main(int argc, char** argv) {
 		return -1;
 	}
 
-	// if user does not specify queue size, use <n> for maximum performance
-	if (argc == 2) {
+	// if user does not specify queue size
+	if (argc < 4) {
+		// override it to n/2 for maximum performance
 		QUEUE_SIZE = n / 2;
 
 		if (DEBUG_MODE)
-			printf("Setting QUEUE_SIZE to <n> for maximum performance.\n");
+			printf("Setting QUEUE_SIZE to n/2 for maximum performance.\n");
 	}
 
-	// displaying received data info
-	if (DEBUG_MODE) {
-		printf("---------------\n");
-		printf("Primes info:\n");
-		printf("n: %ld\n", n);
-		printf("queue size: %d\n", QUEUE_SIZE);
-		printf("debug mode: %d\n", DEBUG_MODE);
-		printf("---------------\n");
-	}
+	return 0;
+}
 
-	// initializing shared data
+//------------------------------------------------------------------------------------------
+// Function to correctly initialize all required program variables
+int initializeProgramData() {
+	if (DEBUG_MODE)
+		printf("> Initializing program data.\n");
+
+	// initialize "shared" data
 	writeIndex = 0;
 	int allocationSize = ceil(1.2 * n / log(n)) + 1;
 	primesList = (unsigned long*) malloc(allocationSize * sizeof(unsigned long));
@@ -251,52 +335,120 @@ int main(int argc, char** argv) {
 		return -1;
 	}
 
-	// initializing termination semaphore
+	// initialize termination semaphore
 	if (sem_init(&termSem, 0, 0) != 0) {
 		fprintf(stderr, "Error: Failed to initialize termination semaphore: %s\n", strerror(errno));
 		return -1;
 	}
 
-	// initializing primes list access control mutex
+	// initialize primes list access control mutex
 	if (pthread_mutex_init(&primesListAccessControlMutex, NULL) != 0) {
 		fprintf(stderr, "Error: Failed to initialize primes list access control mutex: %s\n", strerror(errno));
 		return -1;
 	}
 
-	// initializing mut
-	threadCount = 0;
-	if (pthread_mutex_init(&mut, NULL) != 0) {
-		fprintf(stderr, "Error: Failed to initialize primes list access control mutex: %s\n", strerror(errno));
+	// initialize condition variable, condition variable mutex and 'runningThreadsCount'
+	runningThreadsCount = 0;
+	if (pthread_cond_init(&condVar, NULL) != 0) {
+		fprintf(stderr, "Error: Failed to initialize condition variable: %s\n", strerror(errno));
 		return -1;
 	}
-	pthread_cond_init(&var, NULL);
+	if (pthread_mutex_init(&condVarMutex, NULL) != 0) {
+		fprintf(stderr, "Error: Failed to initialize condition variable mutex: %s\n", strerror(errno));
+		return -1;
+	}
 
-	// starting initial thread
+	if (DEBUG_MODE) {
+		// displaying received data info
+		printf("---------------\n");
+		printf("Primes info:\n");
+		printf("n: %ld\n", n);
+		printf("queue size: %d\n", QUEUE_SIZE);
+		printf("debug mode: %d\n", DEBUG_MODE);
+		printf("---------------\n");
+	}
+
+	return 0;
+}
+
+//------------------------------------------------------------------------------------------
+// Function to free/destroy allocated memory
+int freeProgramMemory() {
+	if (DEBUG_MODE)
+		printf("> Freeing program memory.\n");
+
+	// free the list of prime numbers
+	free(primesList);
+
+	// destroy 'termSem'
+	if (sem_destroy(&termSem) != 0) {
+		fprintf(stderr, "Error: Failed to destroy termination semaphore: %s\n", strerror(errno));
+		return -1;
+	}
+
+	// destroy 'primesListAccessControlMutex'
+	if (pthread_mutex_destroy(&primesListAccessControlMutex) != 0) {
+		fprintf(stderr, "Error: Failed to destroy primes list access control mutex: %s\n", strerror(errno));
+		return -1;
+	}
+
+	// destroy 'condVar'
+	if (pthread_cond_destroy(&condVar) != 0) {
+		fprintf(stderr, "Error: Failed to destroy the condition variable: %s\n", strerror(errno));
+		return -1;
+	}
+
+	// destroy 'condVarMutex'
+	if (pthread_mutex_destroy(&condVarMutex) != 0) {
+		fprintf(stderr, "Error: Failed to destroy the condition variable mutex: %s\n", strerror(errno));
+		return -1;
+	}
+
+	return 0;
+}
+
+//------------------------------------------------------------------------------------------
+// Main function
+int main(int argc, char** argv) {
+	// process and validate all arguments received
+	if (processAndValidateArguments(argc, argv) != 0) {
+		fprintf(stderr, "Error: Failed to process received arguments.\n");
+		return -1;
+	}
+
+	// initialize data
+	if (initializeProgramData() != 0) {
+		fprintf(stderr, "Error: Failed to initialize program data.\n");
+		return -1;
+	}
+
+	// start initial thread
 	pthread_t initThread;
 	if (pthread_create(&initThread, NULL, initThreadFunc, NULL) != 0) {
 		fprintf(stderr, "Error: Failed to create initial thread: %s\n", strerror(errno));
 		return -1;
 	}
 
-	// waiting for termination semaphore
+	// wait for termination semaphore
 	if (sem_wait(&termSem) != 0)
 		fprintf(stderr, "Error: Failed when waiting for termination semaphore: %s\n", strerror(errno));
 
-	// sorting primes list
+	// sort primes list
 	if (DEBUG_MODE)
 		printf("Sorting primes list\n");
 	qsort(primesList, writeIndex, sizeof(unsigned long), compare);
 
-	// displaying primes list
+	// finally display the list of prime numbers
 	printf("\n");
-	printf("The list of primes between 2 and %ld is:\n", n);
+	printf("The list of prime numbers between 2 and %ld is:\n", n);
 	printPrimesList();
 	printf("\n");
 
-	// freeing memory
-	sem_destroy(&termSem);
-	pthread_mutex_destroy(&primesListAccessControlMutex);
-	free(primesList);
+	// free memory
+	if (freeProgramMemory() != 0) {
+		fprintf(stderr, "Error: Failed to free program memory.\n");
+		return -1;
+	}
 
 	if (DEBUG_MODE)
 		printf("Program Terminated.\n");

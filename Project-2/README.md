@@ -15,10 +15,10 @@ Optimization Tests
 
 | Run no. | Simple Mode | Using condVar |
 | ------: | :---------- | :------------ |
-| 1       | X.XXXs      | X.XXXs	    	|
-| 2       | X.XXXs      | X.XXXs	    	|
-| 3       | X.XXXs      | X.XXXs	    	|
-| Mean    | X.XXXs      | X.XXXs	    	|
+| 1       | 0.007s      | 0.008s	    	|
+| 2       | 0.008s      | 0.007s	    	|
+| 3       | 0.008s      | 0.007s	    	|
+| Mean    | 0.008s      | 0.007s	    	|
 
 
 **n = 10 000**

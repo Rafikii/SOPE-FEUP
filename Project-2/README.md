@@ -13,6 +13,13 @@ Professor:
 
 MIEIC - 2014
 
+#####Usage:  
+primes \<n\>  
+primes \<n\> \<debug mode\>  
+primes \<n\> \<debug mode\> \<display list\>  
+primes \<n\> \<debug mode\> \<display list\> \<use cond var\>  
+primes \<n\> \<debug mode\> \<display list\> \<use cond var\> \<queue size\>  
+
 ***
 Speed Tests
 -----------

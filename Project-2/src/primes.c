@@ -6,6 +6,11 @@
 // A program to generate a list of prime numbers based on the sieve of Eratosthenes.
 // Implemented using a circular queue, threads, semaphores, mutexes and condition variables.
 //
+// TODO:
+// - add usage flags instead of arguments list
+// - add default behaviors description
+// - add comments to explain what each global variable is for
+//
 // Authors:							Professor:
 // 	Henrique Ferrolho					Jorge Silva
 // 	Rafaela Faria
@@ -107,6 +112,8 @@ void* filterThread(void* arg) {
 	if (DEBUG_MODE)
 		printf("> Starting a filter thread\n");
 
+	pthread_detach(pthread_self());
+
 	// if using conditional variable for thread termination mechanism
 	if (USE_COND_VAR) {
 		// first of all, update 'runningThreadsCounter'
@@ -202,6 +209,8 @@ void* filterThread(void* arg) {
 	}
 
 	// destroy the input circular queue
+	if (DEBUG_MODE)
+		printf("Destroying circular queue.\n");
 	queue_destroy(inputCircularQueue);
 
 	return NULL;
